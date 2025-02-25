@@ -1,16 +1,16 @@
-<div class="mx-auto max-w-screen-xl">
+<div class="mx-auto max-w-screen-xl px-4">
   @switch(productsState.state.status()) {
     @case ('loading') {
-      <p>Cargando productos...</p>
+      <p class="text-center">Cargando productos...</p>
     }
     @case ('error') {
-      <p>Error al cargar productos.</p>
+      <p class="text-center text-red-500">Error al cargar productos.</p>
     }
     @default {
-      <div class="grid grid-cols-[repeat(4,300px)] gap-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 justify-items-center">
         @for(product of productsState.state.paginatedProducts(); track product) {
           <app-product-card
-            class="block"
+            class="block w-72 h-96"
             [product]="product"
             (addToCart)="addToCart($event)"
           />
