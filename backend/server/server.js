@@ -8,7 +8,7 @@ app.use(express.static('public'));
 app.use(cors());
 app.use(bodyParser.json());
 
-const YOUR_DOMAIN = 'http://localhost:4242';
+const YOUR_FRONTEND_DOMAIN = 'http://localhost:4200';
 
 app.post('/checkout', async (req, res) => {
   const items = req.body.items.map(item => {
@@ -28,8 +28,8 @@ app.post('/checkout', async (req, res) => {
   const session = await stripe.checkout.sessions.create({
     line_items: [...items],
     mode: 'payment',
-    success_url: `${YOUR_DOMAIN}/success.html`,
-    cancel_url: `${YOUR_DOMAIN}/cancel.html`,
+    success_url: `${YOUR_FRONTEND_DOMAIN}/success`,
+    cancel_url: `${YOUR_FRONTEND_DOMAIN}/cancel`,
   });
 
   res.status(200).json(session);
