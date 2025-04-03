@@ -51,3 +51,6 @@ backend/server/node_modules
 
 # Concurrently
 node_modules
+
+# Environment variables
+.env

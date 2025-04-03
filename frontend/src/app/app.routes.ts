@@ -30,6 +30,16 @@ export const routes: Routes = [
     loadChildren: () => import('./cart/cart.routes'),
   },
   {
+    path: 'success',
+    loadComponent: () =>
+      import('./cart/ui/success/success.component').then((m) => m.default)
+  },
+  {
+    path: 'cancel',
+    loadComponent: () =>
+      import('./cart/ui/cancel/cancel.component').then((m) => m.default)
+  },
+  {
     path: '**',
     redirectTo: '',
   }
