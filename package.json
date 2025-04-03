@@ -4,9 +4,14 @@
   "scripts": {
     "start:frontend": "cd frontend && npm start",
     "start:backend": "cd backend/server && node server.js",
-    "start": "concurrently \"npm run start:frontend\" \"npm run start:backend\""
+    "start:stripe": "stripe listen --forward-to localhost:4242/webhook",
+    "start": "concurrently \"npm run start:frontend\" \"npm run start:backend\" \"npm run start:stripe\""
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "nodemailer": "^6.10.0"
   }
 }
