@@ -80,29 +80,67 @@ app.get('/session-status', async (req, res) => {
   });
 });
 
+// async function sendPurchaseEmail(paymentIntent) {
+//   let transporter = nodemailer.createTransport({
+//     service: 'gmail',
+//     auth: {
+//       user: process.env.GMAIL_USER,
+//       pass: process.env.GMAIL_PASS
+//     }
+//   });
+
+//   let mailOptions = {
+//     from: 'fayenzalalala@gmail.com',
+//     to: 'alberwave@gmail.com',
+//     subject: 'Compra realizada con éxito',
+//     text: `El pago con ID ${paymentIntent.id} se ha realizado con éxito.`,
+//     html: `<p>El pago con ID <strong>${paymentIntent.id}</strong> se ha realizado con éxito.</p>`
+//   };
+
+//   try {
+//     let info = await transporter.sendMail(mailOptions);
+//     console.log('Correo enviado: ' + info.response);
+//   } catch (error) {
+//     console.error('Error enviando el correo:', error);
+//   }
+// }
+
 async function sendPurchaseEmail(paymentIntent) {
-  let transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS
+  nodemailer.createTestAccount((err, account) => {
+    if (err) {
+      console.error('Error al crear la cuenta en Ethereal:', err);
+      return;
     }
+
+    console.log('Cuenta Ethereal creada, enviando mensaje...');
+
+    let transporter = nodemailer.createTransport({
+      host: account.smtp.host,
+      port: account.smtp.port,
+      secure: account.smtp.secure,
+      auth: {
+        user: account.user,
+        pass: account.pass
+      }
+    });
+
+    let mailOptions = {
+      from: '"Test Store" <no-reply@example.com>',
+      to: 'alberwave@gmail.com',
+      subject: 'Compra realizada con éxito',
+      text: `El pago con ID ${paymentIntent.id} se ha realizado con éxito.`,
+      html: `<p>El pago con ID <strong>${paymentIntent.id}</strong> se ha realizado con éxito.</p>`
+    };
+
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        console.error('Error enviando el correo:', err);
+      } else {
+        console.log('Correo enviado: ' + info.response);
+        console.log('Preview URL: ' + nodemailer.getTestMessageUrl(info));
+      }
+    });
   });
-
-  let mailOptions = {
-    from: 'fayenzalalala@gmail.com',
-    to: 'alberwave@gmail.com',
-    subject: 'Compra realizada con éxito',
-    text: `El pago con ID ${paymentIntent.id} se ha realizado con éxito.`,
-    html: `<p>El pago con ID <strong>${paymentIntent.id}</strong> se ha realizado con éxito.</p>`
-  };
-
-  try {
-    let info = await transporter.sendMail(mailOptions);
-    console.log('Correo enviado: ' + info.response);
-  } catch (error) {
-    console.error('Error enviando el correo:', error);
-  }
 }
 
 app.listen(4242, () => console.log('Running on port 4242'));
