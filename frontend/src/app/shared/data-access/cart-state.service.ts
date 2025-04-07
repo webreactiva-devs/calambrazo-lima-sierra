@@ -92,4 +92,9 @@ export class CartStateService {
       products
     };
   }
+  clearCart(): void {
+    localStorage.removeItem('products');
+    window.location.reload();
+  }
+
 }
