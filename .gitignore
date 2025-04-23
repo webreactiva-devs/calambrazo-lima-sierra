@@ -57,3 +57,4 @@ node_modules
 
 # Ignore TypeScript build info file
 *.tsbuildinfo
+.vercel
