@@ -1,20 +1,19 @@
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
-// Servidor completo con cors, Stripe, checkout y webhook, sin dotenv
+// Servidor completo con cors, Stripe, checkout y webhook
 const express = require('express');
 const cors = require('cors');
 
 const app = express();
 
-// Variables para diagnóstico
 let stripeInitialized = false;
 let stripeError = null;
 let stripe = null;
 
 // Función para asegurar que una URL tenga el protocolo correcto
 function ensureHttps(url) {
-  if (!url) return 'https://calambrazo-frontend.vercel.app';
+  if (!url) return 'https://fayenza-store.vercel.app/';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return `https://${url}`;
 }
@@ -38,7 +37,7 @@ if (process.env.STRIPE_SECRET_KEY) {
   console.warn(stripeError);
 }
 
-// Webhook - Debe estar antes de bodyParser/express.json()
+// Webhook
 app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
     if (!stripe) {
@@ -138,7 +137,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Checkout con manejo de errores robusto
+// Checkout
 app.post('/api/checkout', async (req, res) => {
   // Si Stripe no está inicializado, usar mock
   if (!stripe) {
@@ -161,7 +160,7 @@ app.post('/api/checkout', async (req, res) => {
       });
     }
 
-    // Mapear items con manejo de errores
+    // Mapear items
     const items = req.body.items.map(item => {
       // Validar que item tiene las propiedades necesarias
       if (!item.title || !item.price) {
@@ -181,7 +180,7 @@ app.post('/api/checkout', async (req, res) => {
       };
     });
 
-    // Calcular total con manejo de errores
+    // Calcular total
     let total = 0;
     try {
       total = items.reduce((acc, item) => {
@@ -194,7 +193,7 @@ app.post('/api/checkout', async (req, res) => {
 
     const purchaseDatetime = new Date().toISOString();
 
-    // Crear resumen de items con manejo de errores
+    // Crear resumen de items
     let itemsSummary = '';
     try {
       itemsSummary = items
@@ -215,7 +214,7 @@ app.post('/api/checkout', async (req, res) => {
     // Asegurar que las URLs de redirección tengan el protocolo correcto
     const frontendDomain = ensureHttps(process.env.YOUR_FRONTEND_DOMAIN);
 
-    // Crear sesión de Stripe con manejo de errores
+    // Crear sesión de Stripe
     try {
       const session = await stripe.checkout.sessions.create({
         line_items: items,
@@ -235,7 +234,6 @@ app.post('/api/checkout', async (req, res) => {
     } catch (stripeError) {
       console.error("Error creando la sesión de Stripe:", stripeError);
 
-      // Respuesta de error detallada con información de diagnóstico
       res.status(500).json({
         error: stripeError.message,
         type: stripeError.type,
@@ -248,7 +246,6 @@ app.post('/api/checkout', async (req, res) => {
   } catch (error) {
     console.error("Error general en checkout:", error);
 
-    // Respuesta de error general
     res.status(500).json({
       error: error.message,
       location: 'checkout general',
