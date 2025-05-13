@@ -103,30 +103,132 @@ async function processCheckoutSession(session) {
     const orderDetailsText = paymentIntent.metadata?.order_details || '';
 
     const buyerEmail =
-    paymentIntent.charges?.data?.[0]?.billing_details?.email ||
-    paymentIntent.receipt_email ||
-    session.customer_details?.email;
+      paymentIntent.charges?.data?.[0]?.billing_details?.email ||
+      paymentIntent.receipt_email ||
+      session.customer_details?.email;
 
-  if (!buyerEmail) {
-    console.warn('No se encontró un email válido en paymentIntent o session.');
-    console.log('paymentIntent:', JSON.stringify(paymentIntent, null, 2));
-    console.log('session:', JSON.stringify(session, null, 2));
-    return;
-  }
-
-    if (process.env.NODE_ENV !== 'production') {
-      if (buyerEmail) {
-        await sendPurchaseEmail(paymentIntent, buyerEmail, orderDetailsText);
-      } else {
-        console.warn('No se encontró email válido.');
-      }
+    if (!buyerEmail) {
+      console.warn('No se encontró un email válido en paymentIntent o session.');
+      console.log('paymentIntent:', JSON.stringify(paymentIntent, null, 2));
+      console.log('session:', JSON.stringify(session, null, 2));
+      return;
     }
+
+    console.log('Llamando a sendPurchaseEmail...');
+    await sendPurchaseEmail(paymentIntent, buyerEmail, orderDetailsText);
 
     console.log('Sesión procesada correctamente');
   } catch (error) {
     console.error('Error procesando la sesión:', error);
   }
 }
+
+async function sendPurchaseEmail(paymentIntent, buyerEmail, orderDetailsText) {
+  try {
+    console.log('Iniciando envío de email...');
+    console.log('EMAIL_ENV:', process.env.EMAIL_ENV);
+    console.log('Datos del email:', { paymentIntent, buyerEmail, orderDetailsText });
+
+    let transporter;
+
+    if (process.env.EMAIL_ENV === 'production') {
+      console.log('Configurando transporte para Mailtrap...');
+      // Configuración del transporte SMTP para Mailtrap
+      transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: process.env.SMTP_SECURE === 'true', // true para 465, false para otros puertos
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      });
+    } else {
+      console.log('Configurando transporte para Ethereal...');
+      // Configuración del transporte SMTP para Ethereal
+      const testAccount = await nodemailer.createTestAccount();
+      console.log('Cuenta de prueba Ethereal creada:', testAccount);
+
+      transporter = nodemailer.createTransport({
+        host: testAccount.smtp.host,
+        port: testAccount.smtp.port,
+        secure: testAccount.smtp.secure,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass
+        }
+      });
+    }
+
+    console.log('Construyendo contenido del email...');
+    const parts = orderDetailsText.split('|');
+    const itemsHTML = (parts[0] || '').replace('Items:', '').split(',').map(item => `<li>${item.trim()}</li>`).join('');
+    const totalHTML = parts[1] ? `<p style="font-weight:bold;">${parts[1].trim()}</p>` : '';
+    const dateHTML = parts[2] ? `<p style="color:gray;">${parts[2].trim()}</p>` : '';
+
+    const mailOptions = {
+      from: '"Fayenza Store" <no-reply@fayenza.com>',
+      to: buyerEmail,
+      subject: 'Compra realizada con éxito',
+      text: `Pago ID ${paymentIntent.id}\n\n${orderDetailsText}`,
+      html: `
+        <div style="font-family:sans-serif;padding:20px;">
+          <h1 style="color:#c1a178;">¡Pago realizado con éxito!</h1>
+          <p>Pago ID: <strong>${paymentIntent.id}</strong></p>
+          <h2>Detalles del pedido:</h2>
+          <ul>${itemsHTML}</ul>
+          ${totalHTML}
+          ${dateHTML}
+          <p style="margin-top:20px;">¡Gracias por confiar en Fayenza Store!</p>
+        </div>
+      `
+    };
+
+    console.log('Enviando email con las siguientes opciones:', mailOptions);
+
+    // Enviar el email
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Correo enviado: ' + info.response);
+
+    // Mostrar URL de previsualización en modo de prueba
+    if (process.env.EMAIL_ENV !== 'production') {
+      console.log('Preview URL: ' + nodemailer.getTestMessageUrl(info));
+    }
+  } catch (error) {
+    console.error('Error enviando email:', error);
+  }
+}
+
+// Ruta para enviar un correo de prueba
+app.post('/api/test-email', async (req, res) => {
+  try {
+    const mailOptions = {
+      from: '"Fayenza Store" <no-reply@fayenza.com>',
+      to: 'alberwave@gmail.com',
+      subject: 'Prueba de correo',
+      text: 'Este es un correo de prueba.',
+      html: '<p>Este es un correo de prueba.</p>'
+    };
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Correo enviado:', info.response);
+
+    res.status(200).json({ message: 'Correo enviado', info });
+  } catch (error) {
+    console.error('Error al enviar el correo:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Middleware CORS - Después de la ruta webhook
 app.use(cors({
@@ -229,56 +331,56 @@ app.post('/api/checkout', async (req, res) => {
 });
 
 // Enviar email con Ethereal
-async function sendPurchaseEmail(paymentIntent, buyerEmail, orderDetailsText) {
-  nodemailer.createTestAccount((err, account) => {
-    if (err) {
-      console.error('Error al crear cuenta Ethereal:', err);
-      return;
-    }
+// async function sendPurchaseEmail(paymentIntent, buyerEmail, orderDetailsText) {
+//   nodemailer.createTestAccount((err, account) => {
+//     if (err) {
+//       console.error('Error al crear cuenta Ethereal:', err);
+//       return;
+//     }
 
-    const transporter = nodemailer.createTransport({
-      host: account.smtp.host,
-      port: account.smtp.port,
-      secure: account.smtp.secure,
-      auth: {
-        user: account.user,
-        pass: account.pass
-      }
-    });
+//     const transporter = nodemailer.createTransport({
+//       host: account.smtp.host,
+//       port: account.smtp.port,
+//       secure: account.smtp.secure,
+//       auth: {
+//         user: account.user,
+//         pass: account.pass
+//       }
+//     });
 
-    const parts = orderDetailsText.split('|');
-    const itemsHTML = (parts[0] || '').replace('Items:', '').split(',').map(item => `<li>${item.trim()}</li>`).join('');
-    const totalHTML = parts[1] ? `<p style="font-weight:bold;">${parts[1].trim()}</p>` : '';
-    const dateHTML = parts[2] ? `<p style="color:gray;">${parts[2].trim()}</p>` : '';
+//     const parts = orderDetailsText.split('|');
+//     const itemsHTML = (parts[0] || '').replace('Items:', '').split(',').map(item => `<li>${item.trim()}</li>`).join('');
+//     const totalHTML = parts[1] ? `<p style="font-weight:bold;">${parts[1].trim()}</p>` : '';
+//     const dateHTML = parts[2] ? `<p style="color:gray;">${parts[2].trim()}</p>` : '';
 
-    const mailOptions = {
-      from: '"Fayenza Store" <no-reply@fayenza.com>',
-      to: buyerEmail,
-      subject: 'Compra realizada con éxito',
-      text: `Pago ID ${paymentIntent.id}\n\n${orderDetailsText}`,
-      html: `
-        <div style="font-family:sans-serif;padding:20px;">
-          <h1 style="color:#c1a178;">¡Pago realizado con éxito!</h1>
-          <p>Pago ID: <strong>${paymentIntent.id}</strong></p>
-          <h2>Detalles del pedido:</h2>
-          <ul>${itemsHTML}</ul>
-          ${totalHTML}
-          ${dateHTML}
-          <p style="margin-top:20px;">¡Gracias por confiar en Fayenza Store!</p>
-        </div>
-      `
-    };
+//     const mailOptions = {
+//       from: '"Fayenza Store" <no-reply@fayenza.com>',
+//       to: buyerEmail,
+//       subject: 'Compra realizada con éxito',
+//       text: `Pago ID ${paymentIntent.id}\n\n${orderDetailsText}`,
+//       html: `
+//         <div style="font-family:sans-serif;padding:20px;">
+//           <h1 style="color:#c1a178;">¡Pago realizado con éxito!</h1>
+//           <p>Pago ID: <strong>${paymentIntent.id}</strong></p>
+//           <h2>Detalles del pedido:</h2>
+//           <ul>${itemsHTML}</ul>
+//           ${totalHTML}
+//           ${dateHTML}
+//           <p style="margin-top:20px;">¡Gracias por confiar en Fayenza Store!</p>
+//         </div>
+//       `
+//     };
 
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.error('Error enviando email:', err);
-      } else {
-        console.log('Correo enviado: ' + info.response);
-        console.log('Preview URL: ' + nodemailer.getTestMessageUrl(info)); // Aquí se muestra la URL
-      }
-    });
-  });
-}
+//     transporter.sendMail(mailOptions, (err, info) => {
+//       if (err) {
+//         console.error('Error enviando email:', err);
+//       } else {
+//         console.log('Correo enviado: ' + info.response);
+//         console.log('Preview URL: ' + nodemailer.getTestMessageUrl(info)); // Aquí se muestra la URL
+//       }
+//     });
+//   });
+// }
 
 // Para desarrollo local
 if (process.env.NODE_ENV !== 'production') {
