@@ -69,15 +69,23 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
     // Procesar evento
     console.log(`Evento recibido: ${event.type}`);
 
+
+    // Procesar el evento de forma asíncrona después de responder
+    if (event.type === "checkout.session.completed") {
+      try {
+        await processCheckoutSession(event.data.object);
+        res.status(200).json({ received: true });
+      } catch (err) {
+        console.error("Error procesando checkout.session.completed:", err);
+        // Stripe recomienda responder 2xx siempre, pero puedes loguear el error
+        res.status(200).json({ received: true, error: err.message });
+      }
+      return;
+    }
+
     // Responder siempre con éxito, incluso si hay errores en el procesamiento
     res.status(200).json({ received: true });
 
-        // Procesar el evento de forma asíncrona después de responder
-    if (event.type === 'checkout.session.completed') {
-      processCheckoutSession(event.data.object).catch(err => {
-        console.error('Error procesando checkout.session.completed:', err);
-      });
-    }
   } catch (error) {
     console.error('Error general en webhook:', error);
         // Siempre responder con éxito para evitar reintentos
@@ -137,7 +145,7 @@ async function sendPurchaseEmail(paymentIntent, buyerEmail, orderDetailsText) {
       transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: Number(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_SECURE === 'true', // true para 465, false para otros puertos
+        // secure: process.env.SMTP_SECURE === 'true', // true para 465, false para otros puertos
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS
@@ -213,7 +221,7 @@ app.post('/api/test-email', async (req, res) => {
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
+      // secure: process.env.SMTP_SECURE === 'true',
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
