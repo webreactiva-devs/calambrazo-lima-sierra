@@ -14,9 +14,9 @@ export default class SuccessComponent implements OnInit{
   private cartState = inject(CartStateService);
 
   ngOnInit(): void {
-    if (!sessionStorage.getItem('cartCleared')) {
+    if (!sessionStorage.getItem('products')) {
       this.cartState.clearCart();
-      sessionStorage.setItem('cartCleared', 'true');
+      sessionStorage.setItem('products', 'true');
     }
   }
 }
